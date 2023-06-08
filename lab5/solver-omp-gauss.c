@@ -61,52 +61,52 @@ double solve (double *u, double *unew, unsigned sizex, unsigned sizey) {
       	}
     	}
 	}
-    else {	// Gauss-Seidel
-		int nblocksi = omp_get_max_threads();
-		int nblocksj = 4;
-		int lights[nblocksi];
+    else {	
+	// Gauss-Seidel
+	int nblocksi = omp_get_max_threads();
+	int nblocksj = userparam*nblocksi;
+	int lights[nblocksi];
+	for (int i = 0; i < nblocksi; ++i) {
+		if (i == 0) lights[0] = nblocksj;
+		else lights[i] = 0;
+	}
 
-		#pragma omp parallel private(tmp, diff) firstprivate(nblocksi,nblocksj) reduction(+:sum)
-		{
-			int aux = 0;
-			int blocki = omp_get_thread_num();
-			if(blocki == 0) {
-				lights[blocki] = nblocksj;
-			}
-			else {
-				lights[blocki] = 0;
-			}
-			int i_start = lowerb(blocki,nblocksi,sizex);
-			int i_end = upperb(blocki,nblocksi,sizex);
-			for (int blockj = 0; blockj < nblocksj; ++blockj) {
-					int j_start = lowerb(blockj, nblocksj, sizey);
-					int j_end = upperb(blockj, nblocksj, sizey);
-			// Sync
-			while (aux <= blockj) {
-					#pragma omp atomic read
-					aux = lights[blocki];
+	#pragma omp parallel private(tmp, diff) firstprivate(nblocksi,nblocksj) reduction(+:sum)
+	{
 
-			}
-			// Kernel
-			for (int i=max(1, i_start); i<=min(sizex-2, i_end); i++) {
-						for (int j=max(1, j_start); j<=min(sizey-2, j_end); j++) {
-							tmp = 0.25 * ( u[ i*sizey  + (j-1) ] +  // left
-								u[ i*sizey + (j+1) ] +  // right
-								u[ (i-1)*sizey + j ] +  // top
-								u[ (i+1)*sizey + j ] ); // bottom
-						diff = tmp - u[i*sizey+ j];
-						sum += diff * diff;
-						unew[i*sizey+j] = tmp;
-						}
-					}
+	    int blocki = omp_get_thread_num();
 
-					if (blocki < nblocksi-1) {
-						#pragma omp atomic update
-						++lights[blocki+1];
-					}
-			}
-
+            int i_start = lowerb(blocki,nblocksi,sizex);
+	    int i_end = upperb(blocki,nblocksi,sizex);
+	    for (int blockj = 0; blockj < nblocksj; ++blockj) {
+	        int j_start = lowerb(blockj, nblocksj, sizey);
+		int j_end = upperb(blockj, nblocksj, sizey);
+	        int aux = 0;
+   	        // Sync
+		while (aux <= blockj) {
+		     #pragma omp atomic read
+		     aux = lights[blocki];
 		}
+		// Kernel
+		for (int i=max(1, i_start); i<=min(sizex-2, i_end); i++) {
+   		     for (int j=max(1, j_start); j<=min(sizey-2, j_end); j++) {
+		        tmp = 0.25 * ( u[ i*sizey  + (j-1) ] +  // left
+			   	       u[ i*sizey + (j+1) ] +  // right
+				       u[ (i-1)*sizey + j ] +  // top
+				       u[ (i+1)*sizey + j ] ); // bottom
+			diff = tmp - u[i*sizey+ j];
+			sum += diff * diff;
+			unew[i*sizey+j] = tmp;
+		     }
+		}
+
+		if (blocki < nblocksi-1) {
+		     #pragma omp atomic update
+		     ++lights[blocki+1];
+		}
+	   }
+
+	}
 
 
     }
