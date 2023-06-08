@@ -64,7 +64,7 @@ double solve (double *u, double *unew, unsigned sizex, unsigned sizey) {
     else {	
 	// Gauss-Seidel
 	int nblocksi = omp_get_max_threads();
-	int nblocksj = userparam*nblocksi;
+	int nblocksj = 4;
 	int lights[nblocksi];
 	for (int i = 0; i < nblocksi; ++i) {
 		if (i == 0) lights[0] = nblocksj;
